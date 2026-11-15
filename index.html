@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>關西行程規劃板</title>
+<style>
+  :root {
+    --bg: #f4f1ea; --surface: #fffdf8; --ink: #2b2a27; --muted: #77736b; --line: #e3ddd0;
+    --accent: #b5452f; --accent-soft: #f6e3dc; --pool: #eceee3; --today: #2f6f5e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1d1c1a; --surface: #292825; --ink: #eeeae2; --muted: #a39e94; --line: #3d3a35;
+      --accent: #e07a5f; --accent-soft: #3d2b25; --pool: #262922; --today: #6fbfa6;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  header { padding: 20px 16px 8px; max-width: 1640px; margin: 0 auto; }
+  h1 { margin: 0; font-size: 22px; line-height: 1.3; }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  button { font: inherit; color: inherit; }
+  .btn {
+    font-size: 14px; border: 1px solid var(--line); background: var(--surface);
+    border-radius: 8px; padding: 7px 12px; cursor: pointer;
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .hint { font-size: 13px; color: var(--muted); margin: 10px 0 0; line-height: 1.6; }
+  .status { font-size: 13px; color: var(--today); min-height: 1.4em; margin-top: 4px; }
+
+  .board {
+    display: flex; gap: 12px; overflow-x: auto; padding: 8px 16px 32px;
+    max-width: 1640px; margin: 0 auto; align-items: flex-start;
+  }
+  .col {
+    flex: 0 0 255px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; display: flex; flex-direction: column;
+  }
+  .col.pool { background: var(--pool); }
+  .col.today { border-color: var(--today); box-shadow: 0 0 0 2px var(--today); }
+  .col-head { padding: 12px 12px 8px; border-bottom: 1px solid var(--line); }
+  .col-head h2 { margin: 0; font-size: 16px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .date { font-size: 13px; color: var(--muted); font-weight: normal; }
+  .badge { font-size: 12px; font-weight: normal; color: #fff; background: var(--today); border-radius: 999px; padding: 1px 8px; }
+  .note { font-size: 13px; color: var(--accent); margin-top: 4px; }
+  .pool .col-head p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+
+  .list { list-style: none; margin: 0; padding: 8px; min-height: 60px; display: flex; flex-direction: column; gap: 8px; }
+  .list .empty { font-size: 13px; color: var(--muted); text-align: center; padding: 14px 0; border: 1px dashed var(--line); border-radius: 10px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 8px 8px 8px 2px; display: flex; gap: 4px; align-items: flex-start;
+  }
+  .handle {
+    flex: 0 0 30px; height: 40px; display: grid; place-items: center; cursor: grab;
+    color: var(--muted); touch-action: none; border-radius: 6px; user-select: none;
+    -webkit-user-select: none; font-size: 18px; border: 0; background: none; padding: 0;
+  }
+  .handle:hover, .handle:focus-visible { background: var(--accent-soft); color: var(--accent); outline: none; }
+  .card-body { flex: 1; min-width: 0; }
+  .card h3 { margin: 2px 0 3px; font-size: 15px; line-height: 1.35; word-break: break-word; }
+  .card p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .card-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .map, .mini {
+    font-size: 12px; text-decoration: none; border-radius: 999px; padding: 3px 9px;
+    white-space: nowrap; cursor: pointer; background: none; line-height: 1.4;
+  }
+  .map { color: var(--accent); border: 1px solid currentColor; }
+  .mini { color: var(--muted); border: 1px solid var(--line); }
+  .placeholder { border: 2px dashed var(--accent); border-radius: 10px; background: var(--accent-soft); }
+  .ghost {
+    position: fixed; pointer-events: none; z-index: 1000; margin: 0;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .2); transform: rotate(1.5deg); opacity: .95;
+  }
+  .add { margin: 0 8px 8px; font-size: 13px; color: var(--muted); border: 1px dashed var(--line); background: none; border-radius: 8px; padding: 6px; cursor: pointer; }
+  .meals { margin: 0; padding: 8px 12px; border-top: 1px solid var(--line); font-size: 13px; display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; }
+  .meals dt { color: var(--muted); }
+  .meals dd { margin: 0; line-height: 1.45; }
+  .hotel { padding: 10px 12px 12px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.5; }
+  .hotel strong { display: block; margin-bottom: 2px; }
+  .hotel ul { margin: 0; padding-left: 18px; color: var(--muted); }
+  body.dragging, body.dragging * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
+
+  @media (max-width: 720px) {
+    .board { flex-direction: column; overflow-x: visible; }
+    .col { flex: none; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title"></h1>
+  <div class="sub" id="sub"></div>
+  <div class="toolbar">
+    <button class="btn primary" id="exportBtn">匯出 JSON</button>
+    <button class="btn" id="importBtn">匯入 JSON</button>
+    <button class="btn" id="resetBtn">還原成原始行程</button>
+    <input type="file" id="fileInput" accept=".json,application/json" hidden>
+  </div>
+  <p class="hint">按住卡片左邊的 ⠿ 拖拉，可以調整順序或移到別天（手機也可以）。點兩下景點名稱可以修改。
+    調整會自動存在這台電腦的瀏覽器裡，要帶到別台電腦或傳給同行的人，就按「匯出 JSON」。</p>
+  <div class="status" id="status" role="status"></div>
+</header>
+<main class="board" id="board"></main>
+
+<script>
+const ORIGINAL = {
+ "行程名稱": "易遊網｜絕景丹後關西三都5日",
+ "出發日期": "2027-01-30",
+ "每日行程": [
+  {
+   "第幾天": 1,
+   "日期": "2027-01-30",
+   "景點清單": [
+    {
+     "名稱": "台灣桃園國際機場",
+     "簡短說明": "集合辦理出境手續，搭乘中華航空 CI172 前往大阪。"
+    },
+    {
+     "名稱": "大阪關西海上空港",
+     "簡短說明": "抵達關西機場後前往住宿飯店。"
+    }
+   ],
+   "早餐": "溫暖的家",
+   "午餐": "溫暖的家",
+   "晚餐": "機上套餐＋日式精緻壽司便當及飲料（贈送，價值 ¥1,000）",
+   "住宿飯店": "Loisir 東寺（含大浴場）或 CHISUN PREMIUM 九條（含大浴場）或京都 CHISUN 堀川五條或 Urban Hotel 系列（含大浴場）或同級"
+  },
+  {
+   "第幾天": 2,
+   "日期": "2027-01-31",
+   "景點清單": [
+    {
+     "名稱": "伊根灣遊船與舟屋群",
+     "簡短說明": "搭船遊覽伊根灣、遠眺沿岸船屋，也可散策舟屋群。"
+    },
+    {
+     "名稱": "天橋立",
+     "簡短說明": "日本三景之一，以約 3.6 公里的松林沙洲聞名。"
+    },
+    {
+     "名稱": "傘松公園或天橋立 View Land",
+     "簡短說明": "搭乘纜車登上展望區，欣賞天橋立倒映視角；行程安排其一。"
+    },
+    {
+     "名稱": "京都美山合掌村・茅草屋之鄉",
+     "簡短說明": "漫步北村傳統茅草屋聚落，欣賞田園與古建築景致。"
+    }
+   ],
+   "早餐": "飯店內早餐",
+   "午餐": "天橋立精選旬味海鮮御膳或季節料理和風膳食（標示 ¥2,500）",
+   "晚餐": "方便遊玩，敬請自理",
+   "住宿飯店": "Loisir 東寺（含大浴場）或 CHISUN PREMIUM 九條（含大浴場）或京都 CHISUN 堀川五條或 Urban Hotel 系列（含大浴場）或同級"
+  },
+  {
+   "第幾天": 3,
+   "日期": "2027-02-01",
+   "景點清單": [
+    {
+     "名稱": "伏見稻荷大社",
+     "簡短說明": "參觀以朱紅色千本鳥居聞名的稻荷神社總本社。"
+    },
+    {
+     "名稱": "宇治平等院",
+     "簡短說明": "世界文化遺產，以鳳凰堂及日本國寶建築聞名。"
+    },
+    {
+     "名稱": "平等院表參道",
+     "簡短說明": "漫步宇治的香氣街道，沿途可逛茶店與特色店家。"
+    },
+    {
+     "名稱": "宇治上神社",
+     "簡短說明": "世界文化遺產，保存現存最古老的神社本殿；贈送每人一個兔子御神籤。"
+    },
+    {
+     "名稱": "大阪免稅店",
+     "簡短說明": "自由選購伴手禮與各式商品。"
+    },
+    {
+     "名稱": "道頓堀、心齋橋、御堂筋大道或梅田地下街",
+     "簡短說明": "飯店後自由逛街，可依喜好前往大阪繁華購物與美食區。"
+    }
+   ],
+   "早餐": "飯店內享用",
+   "午餐": "方便遊玩，敬請自理",
+   "晚餐": "和牛涮涮鍋吃到飽或和牛燒肉吃到飽（標示 ¥4,500）",
+   "住宿飯店": "大阪心齋橋 GRAND 或 Holiday Inn 御堂筋或 NOKU 大阪或 sarasa 心齋橋或 KOKO 或 WBF 元町或同級"
+  },
+  {
+   "第幾天": 4,
+   "日期": "2027-02-02",
+   "景點清單": [
+    {
+     "名稱": "全日自由活動",
+     "簡短說明": "當日無固定團體行程，可自行安排大阪活動。"
+    },
+    {
+     "名稱": "通天閣與新世界商店街（推薦）",
+     "簡短說明": "可登塔眺望或逛新世界商店街，品嚐美食並欣賞特色招牌。"
+    },
+    {
+     "名稱": "四天王寺（推薦）",
+     "簡短說明": "參訪由聖德太子創建的古寺，欣賞寺院建築與日式庭園。"
+    },
+    {
+     "名稱": "大阪天滿宮（推薦）",
+     "簡短說明": "祭祀學問之神菅原道真的神社，與太宰府、北野天滿宮並稱日本三大天神。"
+    }
+   ],
+   "早餐": "飯店內早餐",
+   "午餐": "方便遊玩，敬請自理",
+   "晚餐": "方便遊玩，敬請自理",
+   "住宿飯店": "大阪心齋橋 GRAND 或 Holiday Inn 御堂筋或 NOKU 大阪或 sarasa 心齋橋或 KOKO 或 WBF 元町或同級"
+  },
+  {
+   "第幾天": 5,
+   "日期": "2027-02-03",
+   "景點清單": [
+    {
+     "名稱": "奈良公園",
+     "簡短說明": "漫步梅花鹿悠遊的公園，可與小鹿互動並獲贈鹿仙貝（每兩人一份）。"
+    },
+    {
+     "名稱": "SEVEN PARK 天美、AEON 臨空泉南或三井 LaLaport 堺",
+     "簡短說明": "行程安排其一，前往大型購物與休閒商場。"
+    },
+    {
+     "名稱": "大阪關西海上空港",
+     "簡短說明": "前往機場搭乘中華航空 CI173 返回台北。"
+    }
+   ],
+   "早餐": "飯店內早餐",
+   "午餐": "為方便遊玩，敬請自理",
+   "晚餐": "機上套餐",
+   "住宿飯店": null
+  }
+ ]
+};
+const KEY = "kansai-planner-v1";
+const board = document.getElementById("board");
+const statusEl = document.getElementById("status");
+let state;
+let drag = null;
+
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+// 讀進 itinerary.json 格式；推薦景點放進備選，「全日自由活動」改成當天備註
+function normalize(data) {
+  const s = clone(data);
+  if (!s || !Array.isArray(s["每日行程"])) throw new Error("檔案裡找不到「每日行程」");
+  if (!Array.isArray(s["備選"])) s["備選"] = [];
+  s["每日行程"].forEach(day => {
+    if (!Array.isArray(day["景點清單"])) day["景點清單"] = [];
+    const keep = [];
+    day["景點清單"].forEach(p => {
+      const name = String(p["名稱"] || "");
+      if (name.includes("（推薦）")) s["備選"].push({ ...p, "名稱": name.replace("（推薦）", "").trim() });
+      else if (name.includes("全日自由活動")) day["備註"] = day["備註"] || name;
+      else keep.push(p);
+    });
+    day["景點清單"] = keep;
+  });
+  return s;
+}
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) return normalize(JSON.parse(raw));
+  } catch (e) {}
+  return normalize(ORIGINAL);
+}
+function flash(msg) {
+  statusEl.textContent = msg;
+  clearTimeout(flash.t);
+  flash.t = setTimeout(() => { statusEl.textContent = ""; }, 3000);
+}
+
+function listOf(id) { return id === "pool" ? state["備選"] : state["每日行程"][Number(id.slice(1))]["景點清單"]; }
+function listIds() { return ["pool"].concat(state["每日行程"].map((_, i) => "d" + i)); }
+
+function todayStr() {
+  const q = new URLSearchParams(location.search).get("date");
+  if (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) return q;
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+
+function cardEl(p, listId, idx) {
+  const li = el("li", "card");
+  li.dataset.list = listId;
+  li.dataset.idx = idx;
+  const h = el("button", "handle", "⠿");
+  h.type = "button";
+  h.setAttribute("aria-label", "拖拉「" + p["名稱"] + "」，或用方向鍵移動");
+  const body = el("div", "card-body");
+  const title = el("h3", null, p["名稱"]);
+  title.title = "點兩下修改";
+  body.appendChild(title);
+  if (p["簡短說明"]) body.appendChild(el("p", null, p["簡短說明"]));
+  const actions = el("div", "card-actions");
+  const a = el("a", "map", "地圖");
+  a.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(p["名稱"]);
+  a.target = "_blank";
+  a.rel = "noopener";
+  actions.appendChild(a);
+  const rm = el("button", "mini", listId === "pool" ? "刪除" : "移到備選");
+  rm.type = "button";
+  rm.dataset.act = "remove";
+  actions.appendChild(rm);
+  body.appendChild(actions);
+  li.append(h, body);
+  return li;
+}
+
+function render(focus) {
+  document.getElementById("title").textContent = state["行程名稱"] || "我的行程";
+  const days = state["每日行程"];
+  document.getElementById("sub").textContent =
+    days.length ? days[0]["日期"] + " 出發・" + days.length + " 天" : "";
+  board.innerHTML = "";
+  const today = todayStr();
+  let todayCol = null;
+
+  // 備選欄
+  const pool = el("section", "col pool");
+  const ph = el("div", "col-head");
+  ph.appendChild(el("h2", null, "備選景點"));
+  ph.appendChild(el("p", null, "想去就拖進某一天，不去就放這裡"));
+  pool.appendChild(ph);
+  pool.appendChild(listEl("pool", state["備選"]));
+  pool.appendChild(addBtn("pool"));
+  board.appendChild(pool);
+
+  days.forEach((day, i) => {
+    const col = el("section", "col");
+    const head = el("div", "col-head");
+    const h2 = el("h2", null, "Day " + (day["第幾天"] || i + 1));
+    h2.appendChild(el("span", "date", day["日期"] || ""));
+    if (day["日期"] === today) {
+      col.classList.add("today");
+      h2.appendChild(el("span", "badge", "今天"));
+      todayCol = col;
+    }
+    head.appendChild(h2);
+    if (day["備註"]) head.appendChild(el("div", "note", day["備註"]));
+    col.appendChild(head);
+    col.appendChild(listEl("d" + i, day["景點清單"]));
+    col.appendChild(addBtn("d" + i));
+
+    const dl = el("dl", "meals");
+    [["早餐", "早"], ["午餐", "午"], ["晚餐", "晚"]].forEach(([k, label]) => {
+      dl.appendChild(el("dt", null, label));
+      dl.appendChild(el("dd", null, day[k] || "—"));
+    });
+    col.appendChild(dl);
+
+    const hotel = el("div", "hotel");
+    if (day["住宿飯店"]) {
+      const opts = String(day["住宿飯店"]).split(/\s*或\s*/).filter(Boolean);
+      hotel.appendChild(el("strong", null, opts.length > 1 ? "🏨 當晚住宿（其中一間）" : "🏨 當晚住宿"));
+      const ul = el("ul");
+      opts.forEach(o => ul.appendChild(el("li", null, o === "同級" ? "或同級飯店" : o)));
+      hotel.appendChild(ul);
+    } else {
+      hotel.appendChild(el("strong", null, "✈️ 當天返台，沒有住宿"));
+    }
+    col.appendChild(hotel);
+    board.appendChild(col);
+  });
+
+  if (focus) {
+    const btn = board.querySelector('.card[data-list="' + focus.list + '"][data-idx="' + focus.idx + '"] .handle');
+    if (btn) btn.focus();
+  }
+  return todayCol;
+}
+
+function listEl(id, items) {
+  const ul = el("ul", "list");
+  ul.dataset.list = id;
+  items.forEach((p, i) => ul.appendChild(cardEl(p, id, i)));
+  if (!items.length) ul.appendChild(el("li", "empty", "把景點拖到這裡"));
+  return ul;
+}
+function addBtn(id) {
+  const b = el("button", "add", "＋ 新增景點");
+  b.type = "button";
+  b.dataset.add = id;
+  return b;
+}
+
+function moveItem(from, idx, to, toIdx) {
+  const src = listOf(from);
+  const [item] = src.splice(idx, 1);
+  const dst = listOf(to);
+  toIdx = Math.max(0, Math.min(toIdx, dst.length));
+  dst.splice(toIdx, 0, item);
+  save();
+  return { list: to, idx: toIdx };
+}
+
+// ---------- 拖拉（滑鼠與觸控共用 Pointer Events） ----------
+board.addEventListener("pointerdown", e => {
+  const h = e.target.closest(".handle");
+  if (!h || drag) return;
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  e.preventDefault();
+  const card = h.closest(".card");
+  const r = card.getBoundingClientRect();
+  const ghost = card.cloneNode(true);
+  ghost.classList.add("ghost");
+  ghost.style.width = r.width + "px";
+  ghost.style.left = r.left + "px";
+  ghost.style.top = r.top + "px";
+  document.body.appendChild(ghost);
+  const ph = el("li", "placeholder");
+  ph.style.height = r.height + "px";
+  card.after(ph);
+  card.style.display = "none";
+  try { h.setPointerCapture(e.pointerId); } catch (err) {}
+  drag = { card, ghost, ph, from: card.dataset.list, idx: Number(card.dataset.idx),
+           dx: e.clientX - r.left, dy: e.clientY - r.top, x: e.clientX, y: e.clientY, pid: e.pointerId };
+  document.body.classList.add("dragging");
+  requestAnimationFrame(autoScroll);
+});
+
+window.addEventListener("pointermove", e => {
+  if (!drag || e.pointerId !== drag.pid) return;
+  drag.x = e.clientX;
+  drag.y = e.clientY;
+  updateDrag();
+});
+
+function updateDrag() {
+  drag.ghost.style.left = (drag.x - drag.dx) + "px";
+  drag.ghost.style.top = (drag.y - drag.dy) + "px";
+  const target = document.elementFromPoint(drag.x, drag.y);
+  if (!target) return;
+  let list = target.closest(".list");
+  if (!list) {
+    const col = target.closest(".col");
+    if (col) list = col.querySelector(".list");
+  }
+  if (!list) return;
+  const empty = list.querySelector(".empty");
+  if (empty) empty.remove();
+  const cards = Array.from(list.querySelectorAll(".card")).filter(c => c !== drag.card);
+  let before = null;
+  for (const c of cards) {
+    const r = c.getBoundingClientRect();
+    if (drag.y < r.top + r.height / 2) { before = c; break; }
+  }
+  if (before) list.insertBefore(drag.ph, before);
+  else list.appendChild(drag.ph);
+}
+
+function autoScroll() {
+  if (!drag) return;
+  const edge = 70, speed = 14;
+  let moved = false;
+  if (drag.y < edge) { window.scrollBy(0, -speed); moved = true; }
+  else if (drag.y > innerHeight - edge) { window.scrollBy(0, speed); moved = true; }
+  if (board.scrollWidth > board.clientWidth) {
+    const br = board.getBoundingClientRect();
+    if (drag.x < br.left + edge) { board.scrollLeft -= speed; moved = true; }
+    else if (drag.x > br.right - edge) { board.scrollLeft += speed; moved = true; }
+  }
+  if (moved) updateDrag();
+  requestAnimationFrame(autoScroll);
+}
+
+function endDrag(commit) {
+  if (!drag) return;
+  const d = drag;
+  drag = null;
+  document.body.classList.remove("dragging");
+  d.ghost.remove();
+  let focus = null;
+  if (commit && d.ph.parentNode) {
+    const list = d.ph.parentNode;
+    let toIdx = 0;
+    for (const n of list.children) {
+      if (n === d.ph) break;
+      if (n.classList.contains("card") && n !== d.card) toIdx++;
+    }
+    focus = moveItem(d.from, d.idx, list.dataset.list, toIdx);
+    const name = listOf(focus.list)[focus.idx]["名稱"];
+    flash("已把「" + name + "」放到" + (focus.list === "pool" ? "備選景點" : "Day " + (Number(focus.list.slice(1)) + 1)));
+  }
+  render();
+}
+window.addEventListener("pointerup", e => { if (drag && e.pointerId === drag.pid) endDrag(true); });
+window.addEventListener("pointercancel", e => { if (drag && e.pointerId === drag.pid) endDrag(false); });
+window.addEventListener("keydown", e => { if (drag && e.key === "Escape") endDrag(false); });
+
+// 鍵盤：↑↓ 同一天換順序，←→ 移到前一欄或後一欄
+board.addEventListener("keydown", e => {
+  const h = e.target.closest(".handle");
+  if (!h) return;
+  const card = h.closest(".card");
+  const from = card.dataset.list, idx = Number(card.dataset.idx);
+  const ids = listIds();
+  let to = from, toIdx = idx;
+  if (e.key === "ArrowUp") toIdx = idx - 1;
+  else if (e.key === "ArrowDown") toIdx = idx + 1;
+  else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+    const k = ids.indexOf(from) + (e.key === "ArrowLeft" ? -1 : 1);
+    if (k < 0 || k >= ids.length) return;
+    to = ids[k];
+    toIdx = listOf(to).length;
+  } else return;
+  e.preventDefault();
+  if (to === from && (toIdx < 0 || toIdx >= listOf(from).length)) return;
+  render(moveItem(from, idx, to, toIdx));
+});
+
+// 刪除、移到備選、新增、修改
+board.addEventListener("click", e => {
+  const rm = e.target.closest('[data-act="remove"]');
+  if (rm) {
+    const card = rm.closest(".card");
+    const from = card.dataset.list, idx = Number(card.dataset.idx);
+    const name = listOf(from)[idx]["名稱"];
+    if (from === "pool") {
+      if (!confirm("確定刪除「" + name + "」？")) return;
+      listOf(from).splice(idx, 1);
+      save();
+      flash("已刪除「" + name + "」");
+    } else {
+      moveItem(from, idx, "pool", state["備選"].length);
+      flash("已把「" + name + "」移到備選景點");
+    }
+    render();
+    return;
+  }
+  const add = e.target.closest("[data-add]");
+  if (add) {
+    const name = prompt("景點名稱（寫上城市會讓地圖比較準，例如「大阪 黑門市場」）");
+    if (!name || !name.trim()) return;
+    const desc = prompt("簡短說明（可以空白）") || "";
+    listOf(add.dataset.add).push({ "名稱": name.trim(), "簡短說明": desc.trim() });
+    save();
+    render();
+  }
+});
+board.addEventListener("dblclick", e => {
+  const t = e.target.closest(".card h3");
+  if (!t) return;
+  const card = t.closest(".card");
+  const p = listOf(card.dataset.list)[Number(card.dataset.idx)];
+  const name = prompt("修改景點名稱", p["名稱"]);
+  if (name == null || !name.trim()) return;
+  const desc = prompt("修改簡短說明", p["簡短說明"] || "");
+  p["名稱"] = name.trim();
+  if (desc != null) p["簡短說明"] = desc.trim();
+  save();
+  render();
+});
+
+// ---------- 匯出、匯入、還原 ----------
+document.getElementById("exportBtn").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "itinerary.json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  flash("已匯出 itinerary.json");
+});
+document.getElementById("importBtn").addEventListener("click", () => document.getElementById("fileInput").click());
+document.getElementById("fileInput").addEventListener("change", e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      state = normalize(JSON.parse(reader.result));
+      save();
+      render();
+      flash("已匯入 " + f.name);
+    } catch (err) {
+      alert("這個檔案讀不進來：" + err.message);
+    }
+    e.target.value = "";
+  };
+  reader.readAsText(f, "utf-8");
+});
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if (!confirm("回到原始行程？目前的調整會消失（建議先匯出）。")) return;
+  state = normalize(ORIGINAL);
+  save();
+  render();
+  flash("已還原成原始行程");
+});
+
+state = load();
+const todayCol = render();
+if (todayCol) todayCol.scrollIntoView({ block: "start", inline: "start" });
+</script>
+</body>
+</html>
